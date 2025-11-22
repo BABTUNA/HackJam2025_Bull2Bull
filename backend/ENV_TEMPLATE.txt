@@ -1,0 +1,35 @@
+# Copy this file to .env and fill in your values
+
+# Server Configuration
+PORT=3000
+NODE_ENV=development
+
+# Supabase Configuration
+# Get these from: https://supabase.com/dashboard/project/YOUR_PROJECT/settings/api
+# 1. Go to your Supabase project dashboard
+# 2. Click on Settings (gear icon) -> API
+# 3. Copy "Project URL" -> SUPABASE_URL
+# 4. Copy "service_role" key (secret) -> SUPABASE_SERVICE_ROLE_KEY
+SUPABASE_URL=https://xxxxxxxxxxxxx.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh4eHh4eHh4eHh4eHh4eHh4eCIsInJvbGUiOiJzZXJ2aWNlX3JvbGUiLCJpYXQiOjE2OTk5OTk5OTksImV4cCI6MjAxNTU3NTk5OX0.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+# Firebase Admin SDK Configuration
+# Get these from: Firebase Console -> Project Settings -> Service Accounts -> Generate New Private Key
+# 1. Go to Firebase Console: https://console.firebase.google.com/
+# 2. Select your project
+# 3. Click Settings (gear) -> Project Settings
+# 4. Go to "Service Accounts" tab
+# 5. Click "Generate New Private Key"
+# 6. Download the JSON file
+# 7. Copy values from JSON:
+#    - "project_id" -> FIREBASE_PROJECT_ID
+#    - "private_key" -> FIREBASE_PRIVATE_KEY (keep the quotes and \n characters)
+#    - "client_email" -> FIREBASE_CLIENT_EMAIL
+FIREBASE_PROJECT_ID=your-project-id-12345
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC...\n-----END PRIVATE KEY-----\n"
+FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxxxx@your-project-id.iam.gserviceaccount.com
+
+# CORS Configuration
+# Update this to match your frontend URL (Vite default is 5173)
+CORS_ORIGIN=http://localhost:5173
+

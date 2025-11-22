@@ -1,28 +1,51 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import MapView from './components/MapView';
 import type { LostAndFoundItem } from './types';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
 const App = () => {
-  const [items] = useState<LostAndFoundItem[]>([
-    {
-      id: '1',
-      type: 'lost',
-      title: 'Lost iPhone 13',
-      description: 'Black iPhone 13 with a blue case. Lost near the library entrance.',
-      location: { lat: 28.0590, lng: -82.4145 },
-      date: new Date().toISOString(),
-      contact: 'john@example.com',
-    },
-    {
-      id: '2',
-      type: 'found',
-      title: 'Found Wallet',
-      description: 'Brown leather wallet found at the student center. Contains ID and cards.',
-      location: { lat: 28.0580, lng: -82.4130 },
-      date: new Date().toISOString(),
-      contact: 'sarah@example.com',
-    },
-  ]);
+  const [items, setItems] = useState<LostAndFoundItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch items from backend API
+  useEffect(() => {
+    const fetchItems = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await fetch(`${API_BASE_URL}/api/items`);
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch items: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        
+        // Backend already returns imageUrl, but handle both formats for safety
+        const transformedItems: LostAndFoundItem[] = data.map((item: any) => ({
+          id: item.id,
+          type: item.type,
+          title: item.title,
+          description: item.description,
+          location: item.location,
+          date: item.date,
+          contact: item.contact || undefined,
+          imageUrl: item.imageUrl || item.image_url || undefined,
+        }));
+        
+        setItems(transformedItems);
+      } catch (err) {
+        console.error('Error fetching items:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load items');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchItems();
+  }, []);
 
   const handleMapClick = useCallback((event: { lngLat: { lat: number; lng: number } }) => {
     console.log('Map clicked at:', event.lngLat);
@@ -48,14 +71,40 @@ const App = () => {
 
       <div className="flex flex-1 overflow-hidden min-h-0">
         <div className="flex-1 relative min-h-0">
-          <MapView
-            items={items}
-            onMarkerClick={handleMarkerClick}
-            onMapClick={handleMapClick}
-          />
-          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-white/95 px-4 py-2 rounded-full text-xs text-gray-600 shadow-lg z-10 pointer-events-none">
-            Click on the map to add a new lost or found item
-          </div>
+          {loading && (
+            <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-20">
+              <div className="text-center">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mb-2"></div>
+                <p className="text-gray-600">Loading items...</p>
+              </div>
+            </div>
+          )}
+          {error && (
+            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg shadow-lg z-20 max-w-md">
+              <p className="font-semibold">Error loading items</p>
+              <p className="text-sm">{error}</p>
+              <button
+                onClick={() => window.location.reload()}
+                className="mt-2 px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+          {!loading && !error && (
+            <>
+              <MapView
+                items={items}
+                onMarkerClick={handleMarkerClick}
+                onMapClick={handleMapClick}
+              />
+              <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-white/95 px-4 py-2 rounded-full text-xs text-gray-600 shadow-lg z-10 pointer-events-none">
+                {items.length > 0 
+                  ? `${items.length} item${items.length !== 1 ? 's' : ''} on map`
+                  : 'Click on the map to add a new lost or found item'}
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
