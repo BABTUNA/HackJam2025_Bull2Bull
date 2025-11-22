@@ -105,20 +105,14 @@ const App = () => {
             />
             <div className="flex-1 relative min-h-0 p-4">
               <div className="w-full h-full border-4 border-emerald-400 rounded-lg shadow-xl overflow-hidden">
-                {!loading && !error && (
-                  <MapView
-                    items={items}
-                    onMarkerClick={handleMarkerClick}
-                    onMapClick={handleMapClick}
-                  />
-                )}
-                {!loading && !error && (
-                  <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-white/95 px-4 py-2 rounded-full text-xs text-gray-600 shadow-lg z-10 pointer-events-none">
-                    {items.length > 0 
-                      ? `${items.length} item${items.length !== 1 ? 's' : ''} on map`
-                      : 'Click on the map to add a new lost or found item'}
-                  </div>
-                )}
+                <MapView
+                  items={items}
+                  onMarkerClick={handleMarkerClick}
+                  onMapClick={handleMapClick}
+                />
+                <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-white/95 px-4 py-2 rounded-full text-xs text-gray-600 shadow-lg z-10 pointer-events-none">
+                  Click on the map to add a new lost or found item
+                </div>
               </div>
             </div>
           </div>
