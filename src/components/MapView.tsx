@@ -19,19 +19,16 @@ const MapView = ({ items, onMarkerClick, onMapClick }: MapViewProps) => {
   useEffect(() => {
     if (!mapContainer.current) return;
 
-    if (map.current) {
-      map.current.setStyle('https://demotiles.maplibre.org/globe.json');
-      return;
-    }
+    if (map.current) return;
 
     map.current = new maplibregl.Map({
       container: mapContainer.current,
-      style: 'https://demotiles.maplibre.org/globe.json',
-      center: [-122.4194, 37.7749],
-      zoom: 12
+      style: 'https://tiles.openfreemap.org/styles/bright',
+      center: [-82.4139, 28.0586],
+      zoom: 15
     });
 
-    map.current.on('style.load', () => {
+    map.current.once('style.load', () => {
       console.log('Map style loaded: globe.json');
     });
 
