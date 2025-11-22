@@ -65,13 +65,41 @@ const App = () => {
     console.log('Add item clicked');
   }, []);
 
-  const handleAddItem = useCallback((itemData: Omit<LostAndFoundItem, 'id' | 'date'>) => {
-    const newItem: LostAndFoundItem = {
-      ...itemData,
-      id: Date.now().toString(),
-      date: new Date().toISOString()
-    };
-    setItems(prev => [...prev, newItem]);
+  const handleAddItem = useCallback(async (itemData: Omit<LostAndFoundItem, 'id' | 'date'>) => {
+    try {
+      // Prepare item for API (backend will generate ID and date if not provided)
+      const itemToSave: LostAndFoundItem = {
+        ...itemData,
+        id: Date.now().toString(),
+        date: new Date().toISOString()
+      };
+
+      // Send POST request to backend API
+      const response = await fetch(`${API_BASE_URL}/api/items`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(itemToSave),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: response.statusText }));
+        const errorMessage = errorData.error || errorData.message || `Failed to create item: ${response.statusText}`;
+        throw new Error(errorMessage);
+      }
+
+      const savedItem = await response.json();
+      
+      // Add the saved item to the local state (prepend to show newest first)
+      setItems(prev => [savedItem, ...prev]);
+      
+      console.log('Item saved successfully:', savedItem);
+    } catch (err) {
+      console.error('Error saving item:', err);
+      // Re-throw error so Sidebar can handle it
+      throw err;
+    }
   }, []);
 
   const handleItemClick = useCallback((item: LostAndFoundItem) => {

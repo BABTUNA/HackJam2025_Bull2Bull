@@ -2,7 +2,7 @@
 -- Run this script in Supabase SQL Editor to set up your database
 
 -- ============================================
--- STEP 1: CREATE TABLES
+-- STEP 1: CREATE TABLES (or migrate existing)
 -- ============================================
 
 -- Items table
@@ -13,10 +13,56 @@ CREATE TABLE IF NOT EXISTS items (
   description TEXT,
   location JSONB NOT NULL,
   date TEXT NOT NULL,
-  contact TEXT,
+  contact_email TEXT CHECK (contact_email IS NULL OR contact_email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'),
   image_url TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Migrate existing table if it has the old 'contact' column
+DO $$
+BEGIN
+  -- Check if 'contact' column exists and 'contact_email' doesn't
+  IF EXISTS (
+    SELECT 1 
+    FROM information_schema.columns 
+    WHERE table_name = 'items' 
+    AND column_name = 'contact'
+  ) AND NOT EXISTS (
+    SELECT 1 
+    FROM information_schema.columns 
+    WHERE table_name = 'items' 
+    AND column_name = 'contact_email'
+  ) THEN
+    -- Add contact_email column
+    ALTER TABLE items ADD COLUMN contact_email TEXT;
+    
+    -- Migrate data from contact to contact_email
+    UPDATE items 
+    SET contact_email = contact 
+    WHERE contact_email IS NULL AND contact IS NOT NULL;
+    
+    -- Add email validation constraint
+    ALTER TABLE items 
+    ADD CONSTRAINT check_contact_email_format 
+    CHECK (contact_email IS NULL OR contact_email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$');
+    
+    -- Optional: Remove old contact column (uncomment if you want to remove it)
+    -- ALTER TABLE items DROP COLUMN contact;
+  END IF;
+  
+  -- If contact_email column doesn't exist at all, add it
+  IF NOT EXISTS (
+    SELECT 1 
+    FROM information_schema.columns 
+    WHERE table_name = 'items' 
+    AND column_name = 'contact_email'
+  ) THEN
+    ALTER TABLE items ADD COLUMN contact_email TEXT;
+    ALTER TABLE items 
+    ADD CONSTRAINT check_contact_email_format 
+    CHECK (contact_email IS NULL OR contact_email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$');
+  END IF;
+END $$;
 
 -- Subscriptions table
 CREATE TABLE IF NOT EXISTS subscriptions (
@@ -42,7 +88,7 @@ CREATE INDEX IF NOT EXISTS idx_subscriptions_email ON subscriptions(email) WHERE
 
 -- Insert sample items (matching App.tsx format)
 -- All coordinates are within University of South Florida campus boundaries
-INSERT INTO items (id, type, title, description, location, date, contact, image_url) VALUES
+INSERT INTO items (id, type, title, description, location, date, contact_email, image_url) VALUES
   -- Lost Items
   (
     '1',
@@ -251,7 +297,7 @@ ON CONFLICT (id) DO UPDATE SET
   description = EXCLUDED.description,
   location = EXCLUDED.location,
   date = EXCLUDED.date,
-  contact = EXCLUDED.contact,
+  contact_email = EXCLUDED.contact_email,
   image_url = EXCLUDED.image_url;
 
 -- ============================================
@@ -266,7 +312,7 @@ SELECT
   description,
   location,
   date,
-  contact,
+  contact_email,
   created_at
 FROM items
 ORDER BY created_at DESC;

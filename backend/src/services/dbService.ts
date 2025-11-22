@@ -4,7 +4,7 @@ import type { LostAndFoundItem, Subscription } from '../types/index.js';
 // Items
 export const saveItem = async (item: LostAndFoundItem): Promise<LostAndFoundItem> => {
   const result = await pool.query(
-    `INSERT INTO items (id, type, title, description, location, date, contact, image_url)
+    `INSERT INTO items (id, type, title, description, location, date, contact_email, image_url)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      RETURNING *`,
     [
@@ -27,7 +27,7 @@ export const saveItem = async (item: LostAndFoundItem): Promise<LostAndFoundItem
     description: row.description,
     location: row.location,
     date: row.date,
-    contact: row.contact,
+    contact: row.contact_email,
     imageUrl: row.image_url,
     created_at: row.created_at,
   };
@@ -45,7 +45,7 @@ export const getItems = async (): Promise<LostAndFoundItem[]> => {
     description: row.description,
     location: row.location,
     date: row.date,
-    contact: row.contact,
+    contact: row.contact_email,
     imageUrl: row.image_url,
     created_at: row.created_at,
   }));
@@ -69,7 +69,7 @@ export const getItemById = async (id: string): Promise<LostAndFoundItem | null> 
     description: row.description,
     location: row.location,
     date: row.date,
-    contact: row.contact,
+    contact: row.contact_email,
     imageUrl: row.image_url,
     created_at: row.created_at,
   };
@@ -93,7 +93,7 @@ export const updateItem = async (id: string, updates: Partial<LostAndFoundItem>)
     values.push(JSON.stringify(updates.location));
   }
   if (updates.contact !== undefined) {
-    setClauses.push(`contact = $${paramIndex++}`);
+    setClauses.push(`contact_email = $${paramIndex++}`);
     values.push(updates.contact);
   }
   if (updates.imageUrl !== undefined) {
@@ -128,7 +128,7 @@ export const updateItem = async (id: string, updates: Partial<LostAndFoundItem>)
     description: row.description,
     location: row.location,
     date: row.date,
-    contact: row.contact,
+    contact: row.contact_email,
     imageUrl: row.image_url,
     created_at: row.created_at,
   };

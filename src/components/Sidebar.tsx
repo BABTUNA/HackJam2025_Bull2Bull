@@ -3,12 +3,15 @@ import type { LostAndFoundItem, ItemType } from '../types';
 
 interface SidebarProps {
   items: LostAndFoundItem[];
-  onAddItem: (item: Omit<LostAndFoundItem, 'id' | 'date'>) => void;
+  onAddItem: (item: Omit<LostAndFoundItem, 'id' | 'date'>) => Promise<void>;
   onItemClick?: (item: LostAndFoundItem) => void;
 }
 
 const Sidebar = ({ items, onAddItem, onItemClick }: SidebarProps) => {
   const [showForm, setShowForm] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
   const [formData, setFormData] = useState({
     type: 'lost' as ItemType,
     title: '',
@@ -18,30 +21,66 @@ const Sidebar = ({ items, onAddItem, onItemClick }: SidebarProps) => {
     location: { lat: 0, lng: 0 }
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitError(null);
+    
     if (!formData.title.trim() || !formData.description.trim()) {
+      setSubmitError('Title and description are required');
       return;
     }
 
-    onAddItem({
-      type: formData.type,
-      title: formData.title,
-      description: formData.description,
-      contact: formData.contact || undefined,
-      imageUrl: formData.imageUrl || undefined,
-      location: formData.location
-    });
+    // Validate location
+    if (!formData.location.lat || !formData.location.lng || 
+        formData.location.lat === 0 || formData.location.lng === 0) {
+      setSubmitError('Please set a location on the map by clicking on it');
+      return;
+    }
 
-    setFormData({
-      type: 'lost',
-      title: '',
-      description: '',
-      contact: '',
-      imageUrl: '',
-      location: { lat: 0, lng: 0 }
-    });
-    setShowForm(false);
+    // Validate email format if provided
+    if (formData.contact && formData.contact.trim()) {
+      const emailRegex = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/i;
+      if (!emailRegex.test(formData.contact.trim())) {
+        setSubmitError('Please enter a valid email address');
+        return;
+      }
+    }
+
+    setIsSubmitting(true);
+    
+    try {
+      await onAddItem({
+        type: formData.type,
+        title: formData.title.trim(),
+        description: formData.description.trim(),
+        contact: formData.contact.trim() || undefined,
+        imageUrl: formData.imageUrl.trim() || undefined,
+        location: formData.location
+      });
+
+      // Reset form on success
+      setFormData({
+        type: 'lost',
+        title: '',
+        description: '',
+        contact: '',
+        imageUrl: '',
+        location: { lat: 0, lng: 0 }
+      });
+      setSubmitError(null);
+      setSubmitSuccess(true);
+      
+      // Hide success message after 3 seconds
+      setTimeout(() => {
+        setSubmitSuccess(false);
+        setShowForm(false);
+      }, 2000);
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'Failed to save item');
+      setSubmitSuccess(false);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleInputChange = (field: string, value: string | ItemType) => {
@@ -98,6 +137,16 @@ const Sidebar = ({ items, onAddItem, onItemClick }: SidebarProps) => {
 
         {showForm && (
           <form onSubmit={handleSubmit} className="space-y-3">
+            {submitError && (
+              <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg text-sm">
+                {submitError}
+              </div>
+            )}
+            {submitSuccess && (
+              <div className="p-3 bg-green-100 border border-green-400 text-green-700 rounded-lg text-sm">
+                ✓ Item saved successfully!
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Type
@@ -148,17 +197,21 @@ const Sidebar = ({ items, onAddItem, onItemClick }: SidebarProps) => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Contact (Optional)
+                Contact Email (Optional)
               </label>
               <input
-                type="text"
+                type="email"
                 value={formData.contact}
                 onChange={(e) => handleInputChange('contact', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-600"
-                placeholder="Email or phone"
+                placeholder="your.email@example.com"
+                pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$"
                 tabIndex={0}
-                aria-label="Contact information"
+                aria-label="Contact email address"
               />
+              <p className="text-xs text-gray-500 mt-1">
+                Enter a valid email address for contact
+              </p>
             </div>
 
             <div>
@@ -178,7 +231,7 @@ const Sidebar = ({ items, onAddItem, onItemClick }: SidebarProps) => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Location (Latitude, Longitude)
+                Location (Latitude, Longitude) *
               </label>
               <div className="flex gap-2">
                 <input
@@ -190,6 +243,7 @@ const Sidebar = ({ items, onAddItem, onItemClick }: SidebarProps) => {
                   placeholder="Latitude"
                   tabIndex={0}
                   aria-label="Latitude"
+                  required
                 />
                 <input
                   type="number"
@@ -200,17 +254,24 @@ const Sidebar = ({ items, onAddItem, onItemClick }: SidebarProps) => {
                   placeholder="Longitude"
                   tabIndex={0}
                   aria-label="Longitude"
+                  required
                 />
               </div>
+              <p className="text-xs text-gray-500 mt-1">
+                {formData.location.lat && formData.location.lng 
+                  ? `Location set: ${formData.location.lat.toFixed(6)}, ${formData.location.lng.toFixed(6)}`
+                  : 'Click on the map or enter coordinates manually'}
+              </p>
             </div>
 
             <button
               type="submit"
-              className="w-full px-4 py-2 bg-gradient-to-r from-emerald-700 to-emerald-900 text-white rounded-lg font-semibold hover:from-emerald-800 hover:to-emerald-950 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2"
+              disabled={isSubmitting}
+              className="w-full px-4 py-2 bg-gradient-to-r from-emerald-700 to-emerald-900 text-white rounded-lg font-semibold hover:from-emerald-800 hover:to-emerald-950 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
               tabIndex={0}
               aria-label="Submit item"
             >
-              Submit Item
+              {isSubmitting ? 'Saving...' : 'Submit Item'}
             </button>
           </form>
         )}
@@ -253,9 +314,14 @@ const Sidebar = ({ items, onAddItem, onItemClick }: SidebarProps) => {
               <div className="flex items-center justify-between text-xs text-gray-500">
                 <span>{new Date(item.date).toLocaleDateString()}</span>
                 {item.contact && (
-                  <span className="truncate max-w-[120px]" title={item.contact}>
+                  <a
+                    href={`mailto:${item.contact}`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="truncate max-w-[120px] text-emerald-600 hover:text-emerald-700 hover:underline"
+                    title={`Email: ${item.contact}`}
+                  >
                     📧 {item.contact}
-                  </span>
+                  </a>
                 )}
               </div>
             </div>

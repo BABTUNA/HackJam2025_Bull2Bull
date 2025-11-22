@@ -257,6 +257,14 @@ const MapView = ({ items, onMarkerClick, onMapClick }: MapViewProps) => {
           ${popupInfo.type === 'lost' ? 'Lost' : 'Found'}
         </p>
         <p class="my-2 text-sm text-gray-600">${popupInfo.description}</p>
+        ${popupInfo.contact ? `
+          <p class="mt-2 mb-1 text-xs text-gray-700">
+            <strong>Contact:</strong> 
+            <a href="mailto:${popupInfo.contact}" class="text-emerald-600 hover:text-emerald-700 hover:underline ml-1">
+              ${popupInfo.contact}
+            </a>
+          </p>
+        ` : ''}
         <p class="mt-2 mb-0 text-xs text-gray-500">
           ${new Date(popupInfo.date).toLocaleDateString()}
         </p>

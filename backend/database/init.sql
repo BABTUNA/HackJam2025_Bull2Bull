@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS items (
   description TEXT,
   location JSONB NOT NULL,
   date TEXT NOT NULL,
-  contact TEXT,
+  contact_email TEXT CHECK (contact_email IS NULL OR contact_email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'),
   image_url TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -41,7 +41,7 @@ CREATE INDEX IF NOT EXISTS idx_subscriptions_email ON subscriptions(email) WHERE
 -- TRUNCATE TABLE items;
 
 -- Insert sample lost and found items
-INSERT INTO items (id, type, title, description, location, date, contact, image_url) VALUES
+INSERT INTO items (id, type, title, description, location, date, contact_email, image_url) VALUES
   (
     '1',
     'lost',
