@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS items (
   type TEXT NOT NULL CHECK (type IN ('lost', 'found')),
   title TEXT NOT NULL,
   description TEXT,
+  category TEXT CHECK (category IS NULL OR category IN ('electronics', 'clothing', 'accessories', 'documents', 'keys', 'books', 'bags', 'sports', 'other')),
   location JSONB NOT NULL,
   date TEXT NOT NULL,
   contact_email TEXT CHECK (contact_email IS NULL OR contact_email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'),
@@ -29,6 +30,7 @@ CREATE TABLE IF NOT EXISTS subscriptions (
 
 -- Create indexes for better query performance
 CREATE INDEX IF NOT EXISTS idx_items_type ON items(type);
+CREATE INDEX IF NOT EXISTS idx_items_category ON items(category);
 CREATE INDEX IF NOT EXISTS idx_items_created_at ON items(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_subscriptions_fcm_token ON subscriptions(fcm_token);
 CREATE INDEX IF NOT EXISTS idx_subscriptions_email ON subscriptions(email) WHERE email IS NOT NULL;

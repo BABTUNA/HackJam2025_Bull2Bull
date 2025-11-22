@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import type { LostAndFoundItem } from '../types';
+import { getCategoryEmoji, getCategoryWithEmoji } from '../utils/categoryEmojis';
 
 interface MapViewProps {
   items: LostAndFoundItem[];
@@ -224,8 +225,13 @@ const MapView = ({ items, onMarkerClick, onMapClick }: MapViewProps) => {
 
       const el = document.createElement('div');
       el.className = `cursor-pointer text-2xl transition-transform hover:scale-125 ${item.type === 'lost' ? 'text-red-500' : 'text-green-500'}`;
-      el.innerHTML = item.type === 'lost' ? '🔴' : '🟢';
+      
+      // Use category emoji if available, otherwise use type indicator
+      const categoryEmoji = getCategoryEmoji(item.category);
+      const markerEmoji = categoryEmoji || (item.type === 'lost' ? '🔴' : '🟢');
+      el.innerHTML = markerEmoji;
       el.style.cursor = 'pointer';
+      el.title = `${item.type === 'lost' ? 'Lost' : 'Found'}: ${item.title}${item.category ? ` (${item.category})` : ''}`;
 
       const marker = new maplibregl.Marker({ element: el })
         .setLngLat([item.location.lng, item.location.lat])
@@ -251,11 +257,21 @@ const MapView = ({ items, onMarkerClick, onMapClick }: MapViewProps) => {
     if (popupInfo) {
       const popupContent = document.createElement('div');
       popupContent.className = 'min-w-[200px]';
+      const categoryEmoji = popupInfo.category ? getCategoryEmoji(popupInfo.category) : '';
+      const categoryDisplay = popupInfo.category ? getCategoryWithEmoji(popupInfo.category) : '';
+      
       popupContent.innerHTML = `
         <h3 class="m-0 mb-2 text-base font-semibold">${popupInfo.title}</h3>
-        <p class="my-1 px-2 py-1 bg-gray-100 rounded text-xs font-semibold uppercase inline-block">
-          ${popupInfo.type === 'lost' ? 'Lost' : 'Found'}
-        </p>
+        <div class="flex gap-2 items-center mb-2 flex-wrap">
+          <p class="my-1 px-2 py-1 bg-gray-100 rounded text-xs font-semibold uppercase inline-block">
+            ${popupInfo.type === 'lost' ? 'Lost' : 'Found'}
+          </p>
+          ${popupInfo.category ? `
+            <span class="px-2 py-1 bg-emerald-100 text-emerald-700 rounded text-xs font-medium">
+              ${categoryDisplay}
+            </span>
+          ` : ''}
+        </div>
         <p class="my-2 text-sm text-gray-600">${popupInfo.description}</p>
         ${popupInfo.contact ? `
           <p class="mt-2 mb-1 text-xs text-gray-700">

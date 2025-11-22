@@ -1,13 +1,16 @@
-import { useState } from 'react';
-import type { LostAndFoundItem, ItemType } from '../types';
+import { useState, useEffect } from 'react';
+import type { LostAndFoundItem, ItemType, ItemCategory } from '../types';
+import { getCategoryWithEmoji, getCategoryEmoji } from '../utils/categoryEmojis';
 
 interface SidebarProps {
   items: LostAndFoundItem[];
   onAddItem: (item: Omit<LostAndFoundItem, 'id' | 'date'>) => Promise<void>;
   onItemClick?: (item: LostAndFoundItem) => void;
+  onLocationSet?: (location: { lat: number; lng: number }) => void;
+  mapClickLocation?: { lat: number; lng: number } | null;
 }
 
-const Sidebar = ({ items, onAddItem, onItemClick }: SidebarProps) => {
+const Sidebar = ({ items, onAddItem, onItemClick, mapClickLocation }: SidebarProps) => {
   const [showForm, setShowForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -16,10 +19,21 @@ const Sidebar = ({ items, onAddItem, onItemClick }: SidebarProps) => {
     type: 'lost' as ItemType,
     title: '',
     description: '',
+    category: '' as ItemCategory | '',
     contact: '',
     imageUrl: '',
     location: { lat: 0, lng: 0 }
   });
+
+  // Update form location when map is clicked
+  useEffect(() => {
+    if (mapClickLocation && showForm) {
+      setFormData(prev => ({
+        ...prev,
+        location: mapClickLocation
+      }));
+    }
+  }, [mapClickLocation, showForm]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,10 +44,20 @@ const Sidebar = ({ items, onAddItem, onItemClick }: SidebarProps) => {
       return;
     }
 
-    // Validate location
-    if (!formData.location.lat || !formData.location.lng || 
-        formData.location.lat === 0 || formData.location.lng === 0) {
-      setSubmitError('Please set a location on the map by clicking on it');
+    // Validate location - check if coordinates are within reasonable bounds
+    // USF campus is approximately: lat 28.05-28.07, lng -82.43 to -82.40
+    // Allow a wider range for flexibility
+    const lat = formData.location.lat;
+    const lng = formData.location.lng;
+    
+    if (!lat || !lng || lat === 0 || lng === 0) {
+      setSubmitError('Please enter a location (latitude and longitude) or click on the map');
+      return;
+    }
+    
+    // Basic validation - coordinates should be reasonable numbers
+    if (isNaN(lat) || isNaN(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+      setSubmitError('Please enter valid coordinates (latitude: -90 to 90, longitude: -180 to 180)');
       return;
     }
 
@@ -53,6 +77,7 @@ const Sidebar = ({ items, onAddItem, onItemClick }: SidebarProps) => {
         type: formData.type,
         title: formData.title.trim(),
         description: formData.description.trim(),
+        category: formData.category || undefined,
         contact: formData.contact.trim() || undefined,
         imageUrl: formData.imageUrl.trim() || undefined,
         location: formData.location
@@ -63,6 +88,7 @@ const Sidebar = ({ items, onAddItem, onItemClick }: SidebarProps) => {
         type: 'lost',
         title: '',
         description: '',
+        category: '' as ItemCategory | '',
         contact: '',
         imageUrl: '',
         location: { lat: 0, lng: 0 }
@@ -83,7 +109,7 @@ const Sidebar = ({ items, onAddItem, onItemClick }: SidebarProps) => {
     }
   };
 
-  const handleInputChange = (field: string, value: string | ItemType) => {
+  const handleInputChange = (field: string, value: string | ItemType | ItemCategory) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -121,22 +147,25 @@ const Sidebar = ({ items, onAddItem, onItemClick }: SidebarProps) => {
 
   return (
     <div className="flex flex-col h-full w-80 bg-white border-r-2 border-emerald-300 shadow-lg">
-      <div className="p-4 border-b-2 border-emerald-300 bg-gradient-to-r from-emerald-50 to-emerald-100">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold text-emerald-700">Lost & Found Items</h2>
-          <button
-            className="px-4 py-2 bg-emerald-700 text-white rounded-lg text-sm font-semibold hover:bg-emerald-800 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2"
-            onClick={handleFormToggle}
-            onKeyDown={handleFormKeyDown}
-            tabIndex={0}
-            aria-label={showForm ? 'Close form' : 'Add new item'}
-          >
-            {showForm ? 'Cancel' : '+ Post Item'}
-          </button>
+      <div className={`border-b-2 border-emerald-300 bg-gradient-to-r from-emerald-50 to-emerald-100 ${showForm ? 'flex flex-col h-full overflow-hidden' : ''}`}>
+        <div className="p-4 flex-shrink-0">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold text-emerald-700">Lost & Found Items</h2>
+            <button
+              className="px-4 py-2 bg-emerald-700 text-white rounded-lg text-sm font-semibold hover:bg-emerald-800 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2"
+              onClick={handleFormToggle}
+              onKeyDown={handleFormKeyDown}
+              tabIndex={0}
+              aria-label={showForm ? 'Close form' : 'Add new item'}
+            >
+              {showForm ? 'Cancel' : '+ Post Item'}
+            </button>
+          </div>
         </div>
 
         {showForm && (
-          <form onSubmit={handleSubmit} className="space-y-3">
+          <div className="flex-1 overflow-y-auto px-4 pb-4">
+            <form onSubmit={handleSubmit} className="space-y-3">
             {submitError && (
               <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg text-sm">
                 {submitError}
@@ -193,6 +222,30 @@ const Sidebar = ({ items, onAddItem, onItemClick }: SidebarProps) => {
                 tabIndex={0}
                 aria-label="Item description"
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Category (Optional)
+              </label>
+              <select
+                value={formData.category}
+                onChange={(e) => handleInputChange('category', e.target.value as ItemCategory | '')}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-600"
+                tabIndex={0}
+                aria-label="Item category"
+              >
+                <option value="">Select a category...</option>
+                <option value="electronics">📱 Electronics</option>
+                <option value="clothing">👕 Clothing</option>
+                <option value="accessories">👜 Accessories</option>
+                <option value="documents">📄 Documents</option>
+                <option value="keys">🔑 Keys</option>
+                <option value="books">📚 Books</option>
+                <option value="bags">🎒 Bags</option>
+                <option value="sports">⚽ Sports Equipment</option>
+                <option value="other">📦 Other</option>
+              </select>
             </div>
 
             <div>
@@ -258,10 +311,24 @@ const Sidebar = ({ items, onAddItem, onItemClick }: SidebarProps) => {
                 />
               </div>
               <p className="text-xs text-gray-500 mt-1">
-                {formData.location.lat && formData.location.lng 
-                  ? `Location set: ${formData.location.lat.toFixed(6)}, ${formData.location.lng.toFixed(6)}`
-                  : 'Click on the map or enter coordinates manually'}
+                {formData.location.lat && formData.location.lng && formData.location.lat !== 0 && formData.location.lng !== 0
+                  ? `✓ Location set: ${formData.location.lat.toFixed(6)}, ${formData.location.lng.toFixed(6)}`
+                  : 'Click on the map or enter coordinates manually (e.g., 28.0586, -82.4139)'}
               </p>
+              {mapClickLocation && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFormData(prev => ({
+                      ...prev,
+                      location: mapClickLocation
+                    }));
+                  }}
+                  className="mt-1 text-xs text-emerald-600 hover:text-emerald-700 underline"
+                >
+                  Use map click location ({mapClickLocation.lat.toFixed(4)}, {mapClickLocation.lng.toFixed(4)})
+                </button>
+              )}
             </div>
 
             <button
@@ -273,12 +340,14 @@ const Sidebar = ({ items, onAddItem, onItemClick }: SidebarProps) => {
             >
               {isSubmitting ? 'Saving...' : 'Submit Item'}
             </button>
-          </form>
+            </form>
+          </div>
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
-        {items.length === 0 ? (
+      {!showForm && (
+        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          {items.length === 0 ? (
           <div className="text-center text-gray-500 py-8">
             <p className="text-lg">No items posted yet.</p>
             <p className="text-sm mt-2">Click "Post Item" to add one!</p>
@@ -310,6 +379,11 @@ const Sidebar = ({ items, onAddItem, onItemClick }: SidebarProps) => {
                   {item.type === 'lost' ? 'Lost' : 'Found'}
                 </span>
               </div>
+              {item.category && (
+                <span className="inline-block px-2 py-1 mb-2 bg-emerald-100 text-emerald-700 rounded text-xs font-medium">
+                  {getCategoryWithEmoji(item.category)}
+                </span>
+              )}
               <p className="text-sm text-gray-600 mb-2 line-clamp-2">{item.description}</p>
               <div className="flex items-center justify-between text-xs text-gray-500">
                 <span>{new Date(item.date).toLocaleDateString()}</span>
@@ -327,7 +401,8 @@ const Sidebar = ({ items, onAddItem, onItemClick }: SidebarProps) => {
             </div>
           ))
         )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };

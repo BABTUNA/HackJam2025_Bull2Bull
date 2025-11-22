@@ -1,107 +1,12 @@
--- Lost & Found App Database Initialization with Sample Data
--- Run this script in Supabase SQL Editor to set up your database
+-- Data Population Script with Categories
+-- This script populates the database with sample lost and found items
+-- All items include appropriate categories
+-- Run this after ensuring the category column exists (use FIX_CATEGORY_ERROR.sql first if needed)
 
--- ============================================
--- STEP 1: CREATE TABLES (or migrate existing)
--- ============================================
+-- Clear existing data (optional - comment out if you want to keep existing data)
+-- TRUNCATE TABLE items;
 
--- Items table
-CREATE TABLE IF NOT EXISTS items (
-  id TEXT PRIMARY KEY,
-  type TEXT NOT NULL CHECK (type IN ('lost', 'found')),
-  title TEXT NOT NULL,
-  description TEXT,
-  category TEXT CHECK (category IS NULL OR category IN ('electronics', 'clothing', 'accessories', 'documents', 'keys', 'books', 'bags', 'sports', 'other')),
-  location JSONB NOT NULL,
-  date TEXT NOT NULL,
-  contact_email TEXT CHECK (contact_email IS NULL OR contact_email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'),
-  image_url TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Migrate existing table if it has the old 'contact' column
-DO $$
-BEGIN
-  -- Check if 'contact' column exists and 'contact_email' doesn't
-  IF EXISTS (
-    SELECT 1 
-    FROM information_schema.columns 
-    WHERE table_name = 'items' 
-    AND column_name = 'contact'
-  ) AND NOT EXISTS (
-    SELECT 1 
-    FROM information_schema.columns 
-    WHERE table_name = 'items' 
-    AND column_name = 'contact_email'
-  ) THEN
-    -- Add contact_email column
-    ALTER TABLE items ADD COLUMN contact_email TEXT;
-    
-    -- Migrate data from contact to contact_email
-    UPDATE items 
-    SET contact_email = contact 
-    WHERE contact_email IS NULL AND contact IS NOT NULL;
-    
-    -- Add email validation constraint
-    ALTER TABLE items 
-    ADD CONSTRAINT check_contact_email_format 
-    CHECK (contact_email IS NULL OR contact_email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$');
-    
-    -- Optional: Remove old contact column (uncomment if you want to remove it)
-    -- ALTER TABLE items DROP COLUMN contact;
-  END IF;
-  
-  -- If contact_email column doesn't exist at all, add it
-  IF NOT EXISTS (
-    SELECT 1 
-    FROM information_schema.columns 
-    WHERE table_name = 'items' 
-    AND column_name = 'contact_email'
-  ) THEN
-    ALTER TABLE items ADD COLUMN contact_email TEXT;
-    ALTER TABLE items 
-    ADD CONSTRAINT check_contact_email_format 
-    CHECK (contact_email IS NULL OR contact_email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$');
-  END IF;
-  
-  -- Add category column if it doesn't exist
-  IF NOT EXISTS (
-    SELECT 1 
-    FROM information_schema.columns 
-    WHERE table_name = 'items' 
-    AND column_name = 'category'
-  ) THEN
-    ALTER TABLE items ADD COLUMN category TEXT;
-    ALTER TABLE items 
-    ADD CONSTRAINT check_category_values 
-    CHECK (category IS NULL OR category IN ('electronics', 'clothing', 'accessories', 'documents', 'keys', 'books', 'bags', 'sports', 'other'));
-    CREATE INDEX IF NOT EXISTS idx_items_category ON items(category);
-  END IF;
-END $$;
-
--- Subscriptions table
-CREATE TABLE IF NOT EXISTS subscriptions (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  fcm_token TEXT UNIQUE NOT NULL,
-  email TEXT,
-  preferences JSONB DEFAULT '{"notifyOnLost": true, "notifyOnFound": true}'::jsonb,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- ============================================
--- STEP 2: CREATE INDEXES
--- ============================================
-
-CREATE INDEX IF NOT EXISTS idx_items_type ON items(type);
-CREATE INDEX IF NOT EXISTS idx_items_created_at ON items(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_subscriptions_fcm_token ON subscriptions(fcm_token);
-CREATE INDEX IF NOT EXISTS idx_subscriptions_email ON subscriptions(email) WHERE email IS NOT NULL;
-
--- ============================================
--- STEP 3: INSERT SAMPLE DATA
--- ============================================
-
--- Insert sample items (matching App.tsx format)
+-- Insert sample items with categories
 -- All coordinates are within University of South Florida campus boundaries
 INSERT INTO items (id, type, title, description, category, location, date, contact_email, image_url) VALUES
   -- Lost Items
@@ -209,6 +114,7 @@ INSERT INTO items (id, type, title, description, category, location, date, conta
     'lost',
     'Lost Student ID',
     'USF student ID card with photo. Lost near the bookstore entrance.',
+    'documents',
     '{"lat": 28.0610, "lng": -82.4090}'::jsonb,
     (NOW() AT TIME ZONE 'UTC' - INTERVAL '3 hours')::text,
     'taylor@usf.edu',
@@ -336,18 +242,15 @@ ON CONFLICT (id) DO UPDATE SET
   image_url = EXCLUDED.image_url;
 
 -- ============================================
--- STEP 4: VERIFY DATA
+-- VERIFICATION
 -- ============================================
 
--- Show all items
+-- Show all items with categories
 SELECT 
   id,
   type,
   title,
-  description,
   category,
-  location,
-  date,
   contact_email,
   created_at
 FROM items
@@ -361,4 +264,11 @@ FROM items
 WHERE category IS NOT NULL
 GROUP BY category
 ORDER BY count DESC;
+
+-- Count items by type
+SELECT 
+  type,
+  COUNT(*) as count
+FROM items
+GROUP BY type;
 

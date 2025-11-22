@@ -14,6 +14,7 @@ const App = () => {
   const [items, setItems] = useState<LostAndFoundItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [mapClickLocation, setMapClickLocation] = useState<{ lat: number; lng: number } | null>(null);
 
   // Fetch items from backend API
   useEffect(() => {
@@ -35,6 +36,7 @@ const App = () => {
           type: item.type,
           title: item.title,
           description: item.description,
+          category: item.category || undefined,
           location: item.location,
           date: item.date,
           contact: item.contact || undefined,
@@ -55,6 +57,8 @@ const App = () => {
 
   const handleMapClick = useCallback((event: { lngLat: { lat: number; lng: number } }) => {
     console.log('Map clicked at:', event.lngLat);
+    // Set the location so Sidebar can use it
+    setMapClickLocation(event.lngLat);
   }, []);
 
   const handleMarkerClick = useCallback((item: LostAndFoundItem) => {
@@ -91,10 +95,26 @@ const App = () => {
 
       const savedItem = await response.json();
       
-      // Add the saved item to the local state (prepend to show newest first)
-      setItems(prev => [savedItem, ...prev]);
+      // Transform the saved item to match frontend format
+      const transformedItem: LostAndFoundItem = {
+        id: savedItem.id,
+        type: savedItem.type,
+        title: savedItem.title,
+        description: savedItem.description,
+        category: savedItem.category || undefined,
+        location: savedItem.location,
+        date: savedItem.date,
+        contact: savedItem.contact_email || savedItem.contact || undefined,
+        imageUrl: savedItem.image_url || savedItem.imageUrl || undefined,
+      };
       
-      console.log('Item saved successfully:', savedItem);
+      // Add the saved item to the local state (prepend to show newest first)
+      setItems(prev => [transformedItem, ...prev]);
+      
+      // Clear map click location after successful save
+      setMapClickLocation(null);
+      
+      console.log('Item saved successfully:', transformedItem);
     } catch (err) {
       console.error('Error saving item:', err);
       // Re-throw error so Sidebar can handle it
@@ -130,6 +150,7 @@ const App = () => {
               items={items}
               onAddItem={handleAddItem}
               onItemClick={handleItemClick}
+              mapClickLocation={mapClickLocation}
             />
             <div className="flex-1 relative min-h-0 p-4">
               <div className="w-full h-full border-4 border-emerald-400 rounded-lg shadow-xl overflow-hidden">

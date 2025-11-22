@@ -4,14 +4,15 @@ import type { LostAndFoundItem, Subscription } from '../types/index.js';
 // Items
 export const saveItem = async (item: LostAndFoundItem): Promise<LostAndFoundItem> => {
   const result = await pool.query(
-    `INSERT INTO items (id, type, title, description, location, date, contact_email, image_url)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    `INSERT INTO items (id, type, title, description, category, location, date, contact_email, image_url)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
      RETURNING *`,
     [
       item.id,
       item.type,
       item.title,
       item.description,
+      item.category || null,
       JSON.stringify(item.location),
       item.date,
       item.contact || null,
@@ -25,6 +26,7 @@ export const saveItem = async (item: LostAndFoundItem): Promise<LostAndFoundItem
     type: row.type,
     title: row.title,
     description: row.description,
+    category: row.category,
     location: row.location,
     date: row.date,
     contact: row.contact_email,
@@ -43,6 +45,7 @@ export const getItems = async (): Promise<LostAndFoundItem[]> => {
     type: row.type,
     title: row.title,
     description: row.description,
+    category: row.category,
     location: row.location,
     date: row.date,
     contact: row.contact_email,
@@ -67,6 +70,7 @@ export const getItemById = async (id: string): Promise<LostAndFoundItem | null> 
     type: row.type,
     title: row.title,
     description: row.description,
+    category: row.category,
     location: row.location,
     date: row.date,
     contact: row.contact_email,
@@ -87,6 +91,10 @@ export const updateItem = async (id: string, updates: Partial<LostAndFoundItem>)
   if (updates.description !== undefined) {
     setClauses.push(`description = $${paramIndex++}`);
     values.push(updates.description);
+  }
+  if (updates.category !== undefined) {
+    setClauses.push(`category = $${paramIndex++}`);
+    values.push(updates.category);
   }
   if (updates.location !== undefined) {
     setClauses.push(`location = $${paramIndex++}`);
@@ -126,6 +134,7 @@ export const updateItem = async (id: string, updates: Partial<LostAndFoundItem>)
     type: row.type,
     title: row.title,
     description: row.description,
+    category: row.category,
     location: row.location,
     date: row.date,
     contact: row.contact_email,
